@@ -11,7 +11,6 @@ public class ServerRunner {
         Scanner scanner = new Scanner(System.in);
         System.out.println("Напишите 'stop', чтобы остановить сервер");
 
-        outer:
         while (true) {
             String input = scanner.nextLine();
             if ("stop".equalsIgnoreCase(input)) {
