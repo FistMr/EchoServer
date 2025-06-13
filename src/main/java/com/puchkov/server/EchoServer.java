@@ -1,5 +1,8 @@
 package com.puchkov.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -9,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class EchoServer {
+    private static final Logger logger = LoggerFactory.getLogger(EchoServer.class);
     private final static int port = 7;
     private final ExecutorService executorService;
     private volatile boolean isRunning = true;
@@ -21,14 +25,14 @@ public class EchoServer {
     public void run() {
         try (var serverSocket = new ServerSocket(port)) {
             this.serverSocket = serverSocket;
-            System.out.printf("Сервер запущен на порту %S %n", port);
+            logger.info("Сервер запущен на порту {}", port);
             while (isRunning) {
                 var socket = serverSocket.accept();
                 executorService.execute(() -> processSocket(socket));
             }
         } catch (IOException e) {
             if (!isRunning) {
-                System.out.println("Сервер остановлен");
+                logger.error("Сервер остановлен");
                 return;
             }
             throw new RuntimeException(e);
@@ -44,21 +48,28 @@ public class EchoServer {
                 serverSocket.close();
             }
         } catch (IOException e) {
-            System.out.println("Сервер уже остановлен");
+            logger.error("Сервер уже остановлен");
         }
+        executorService.shutdown();
     }
 
     private void processSocket(Socket socket) {
         try (socket;
              var inputStream = new DataInputStream(socket.getInputStream());
              var outputStream = new DataOutputStream(socket.getOutputStream())) {
+            logger.info("клиент подключился");
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
             }
+            logger.info("клиент отключился");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            if (!isRunning) {
+                logger.error("Обработка соединения прервана из-за остановки сервера");
+            } else {
+                logger.error("Ошибка в обработке соединения или клиент принудительно отключился: {}", e.getMessage());
+            }
         }
     }
 }
